@@ -116,17 +116,10 @@ model.compile("adam", lr=1e-3,
               metrics=["mean l2 relative error"],
               decay=("inverse time", 10000, 0.5))
 losshistory, trainstate = model.train(
-    iterations=40000,
+    iterations=100000,
     batch_size=None,          # CartesianProd 全批次
     display_every=2000,
     model_save_path="results_compression/model_ux"
-)
-
-print("\n--- Stage 2: L-BFGS fine-tuning ---")
-model.compile("L-BFGS", metrics=["mean l2 relative error"])
-losshistory, trainstate = model.train(
-    display_every=500,
-    model_save_path="results_compression/model_ux_final"
 )
 
 # ============================================================
