@@ -2,6 +2,8 @@
 import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
+np.random.seed(42)
+torch.manual_seed(42)
 
 # Load dataset
 d = np.load("antiderivative_aligned_train.npz", allow_pickle=True)
