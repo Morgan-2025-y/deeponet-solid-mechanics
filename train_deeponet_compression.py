@@ -1,7 +1,23 @@
-"""Backend supported: tensorflow.compat.v1, tensorflow, pytorch, paddle"""
-import deepxde as dde
-import matplotlib.pyplot as plt
+"""
+DeepONet 训练脚本 — 左右压缩工况，只预测主位移 ux
+===================================================
+算子映射: G : f_left(y) -> u_x(x, y)
+"""
+
 import numpy as np
+import scipy.io as sio
+from scipy.interpolate import griddata
+import deepxde as dde
+import torch
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import os
+
+# ============================================================
+# 0. 基础设置
+# ============================================================
+dde.config.set_default_float("float32")
 np.random.seed(42)
 torch.manual_seed(42)
 os.makedirs("results_compression", exist_ok=True)
@@ -90,7 +106,6 @@ net = dde.nn.DeepONetCartesianProd(
     kernel_initializer="Glorot normal",
 )
 
-# Define a Model
 model = dde.Model(data, net)
 
 # ============================================================

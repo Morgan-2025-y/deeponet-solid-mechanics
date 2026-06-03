@@ -1,0 +1,11 @@
+# 忽略有限元仿真数据文件
+*.mat
+*.npz
+
+# 忽略训练输出的模型权重和结果文件夹
+results_compression/
+
+# 忽略 Python 缓存和虚拟环境
+__pycache__/
+venv/
+.idea/
