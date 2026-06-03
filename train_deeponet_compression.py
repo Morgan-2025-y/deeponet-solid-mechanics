@@ -58,13 +58,12 @@ ux_mean, ux_std = ux_grid.mean(),    ux_grid.std()    + 1e-12
 branch_norm = (branch_all - b_mean) / b_std
 ux_norm     = (ux_grid    - ux_mean) / ux_std
 
-# Load dataset
-d = np.load("antiderivative_aligned_train.npz", allow_pickle=True)
-X_train = (d["X"][0].astype(np.float32), d["X"][1].astype(np.float32))
-y_train = d["y"].astype(np.float32)
-d = np.load("antiderivative_aligned_test.npz", allow_pickle=True)
-X_test = (d["X"][0].astype(np.float32), d["X"][1].astype(np.float32))
-y_test = d["y"].astype(np.float32)
+np.save("results_compression/norm_params.npy",
+        {'b_mean': b_mean, 'b_std': b_std,
+         'ux_mean': ux_mean, 'ux_std': ux_std,
+         'trunk_pts': trunk_pts})
+
+# ============================================================
 # 4. 训练 / 测试划分
 # ============================================================
 perm      = np.random.permutation(N)
@@ -72,18 +71,23 @@ b_train   = branch_norm[perm[:800]];   b_test  = branch_norm[perm[800:]]
 ux_train  = ux_norm[perm[:800]];       ux_test = ux_norm[perm[800:]]
 print(f"Train: {b_train.shape}, Test: {b_test.shape}")
 
+# ============================================================
+# 5. 构建 DeepONet (Cartesian Product 格式)
+# ============================================================
+P = 128   # Branch / Trunk 最后一层宽度 (内积维度)
+
 data = dde.data.TripleCartesianProd(
-    X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test
+    X_train=(b_train, trunk_pts),
+    y_train=ux_train,               # (800, 1024)
+    X_test=(b_test,  trunk_pts),
+    y_test=ux_test                  # (200, 1024)
 )
 
-# Choose a network
-m = 100
-dim_x = 1
 net = dde.nn.DeepONetCartesianProd(
-    [m, 40, 40],
-    [dim_x, 40, 40],
-    "relu",
-    "Glorot normal",
+    layer_sizes_branch=[101, 256, 256, 256, P],   # 输入: 101 个传感器
+    layer_sizes_trunk =[  2, 256, 256, 256, P],   # 输入: (x, y) 坐标
+    activation="tanh",
+    kernel_initializer="Glorot normal",
 )
 
 # Define a Model
