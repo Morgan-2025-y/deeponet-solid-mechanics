@@ -4,6 +4,59 @@ import matplotlib.pyplot as plt
 import numpy as np
 np.random.seed(42)
 torch.manual_seed(42)
+os.makedirs("results_compression", exist_ok=True)
+
+# ============================================================
+# 1. 加载数据 & 筛选压缩工况
+# ============================================================
+print("Loading data...")
+mat = sio.loadmat('plate_no_hole_planestress.mat', squeeze_me=True)
+
+f_type    = mat['f_type'].astype(int)
+f_bc_left = mat['f_bc_left'].astype(np.float32)   # (3000, 101)
+coors_list = mat['coors_dict']
+ux_list    = mat['final_u']
+
+idx_comp = np.where(f_type == 1)[0]               # 1000 个压缩样本
+print(f"压缩样本数: {len(idx_comp)}")
+
+branch_all = f_bc_left[idx_comp, :]               # (1000, 101)
+coors_all  = [coors_list[i] for i in idx_comp]
+ux_all_raw = [ux_list[i]    for i in idx_comp]
+
+# ============================================================
+# 2. 插值到固定均匀网格 (Trunk 查询点)
+# ============================================================
+print("Interpolating to uniform grid...")
+N_GRID = 32
+HALF   = 0.25
+xq = np.linspace(-HALF, HALF, N_GRID)
+yq = np.linspace(-HALF, HALF, N_GRID)
+XX, YY    = np.meshgrid(xq, yq)
+trunk_pts = np.column_stack([XX.ravel(), YY.ravel()]).astype(np.float32)  # (1024, 2)
+N_Q       = trunk_pts.shape[0]
+
+N = len(idx_comp)
+ux_grid = np.zeros((N, N_Q), dtype=np.float32)
+for i in range(N):
+    if i % 200 == 0: print(f"  {i}/{N}")
+    ux_grid[i] = griddata(
+        coors_all[i].astype(np.float64),
+        ux_all_raw[i],
+        trunk_pts.astype(np.float64),
+        method='linear', fill_value=0.0
+    ).astype(np.float32)
+
+print(f"ux 范围: [{ux_grid.min():.4e}, {ux_grid.max():.4e}] m")
+
+# ============================================================
+# 3. 标准化
+# ============================================================
+b_mean, b_std   = branch_all.mean(), branch_all.std() + 1e-12
+ux_mean, ux_std = ux_grid.mean(),    ux_grid.std()    + 1e-12
+
+branch_norm = (branch_all - b_mean) / b_std
+ux_norm     = (ux_grid    - ux_mean) / ux_std
 
 # Load dataset
 d = np.load("antiderivative_aligned_train.npz", allow_pickle=True)
