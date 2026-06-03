@@ -93,9 +93,7 @@ net = dde.nn.DeepONetCartesianProd(
 # Define a Model
 model = dde.Model(data, net)
 
-# Compile and Train
-model.compile("adam", lr=0.001, metrics=["mean l2 relative error"])
-losshistory, train_state = model.train(iterations=10000)
+# ============================================================
 # 6. 训练: Adam → L-BFGS 两阶段
 # ============================================================
 print("\n--- Stage 1: Adam (40000 iters) ---")
@@ -116,6 +114,35 @@ losshistory, trainstate = model.train(
     model_save_path="results_compression/model_ux_final"
 )
 
-# Plot the loss trajectory
-dde.utils.plot_loss_history(losshistory)
-plt.show()
+# ============================================================
+# 7. 评估 & 可视化
+# ============================================================
+ux_pred_norm = model.predict((b_test, trunk_pts))   # (200, 1024)
+ux_pred = ux_pred_norm * ux_std + ux_mean
+ux_true = ux_test      * ux_std + ux_mean
+
+rel_err = (np.linalg.norm(ux_pred - ux_true, axis=1) /
+           (np.linalg.norm(ux_true, axis=1) + 1e-12))
+print(f"\n测试集相对 L2 误差 — Mean: {rel_err.mean():.4f} | Std: {rel_err.std():.4f} | Max: {rel_err.max():.4f}")
+
+# 画第一个测试样本的对比图
+fig, axes = plt.subplots(1, 3, figsize=(13, 4))
+fig.suptitle('Compression DeepONet — u_x Prediction vs FEM')
+kw = dict(cmap='RdBu_r', origin='lower', extent=[-HALF, HALF, -HALF, HALF])
+
+pred_2d = ux_pred[0].reshape(N_GRID, N_GRID)
+true_2d = ux_true[0].reshape(N_GRID, N_GRID)
+err_2d  = np.abs(pred_2d - true_2d)
+
+vmin, vmax = true_2d.min(), true_2d.max()
+for ax, data, title in zip(axes,
+                            [true_2d, pred_2d, err_2d],
+                            ['FEM $u_x$', 'DeepONet $u_x$', '|Error|']):
+    v0, v1 = (vmin, vmax) if title != '|Error|' else (0, err_2d.max())
+    im = ax.imshow(data, **kw, vmin=v0, vmax=v1)
+    ax.set_title(title); ax.set_xlabel('x (m)'); ax.set_ylabel('y (m)')
+    plt.colorbar(im, ax=ax, fraction=0.046)
+
+plt.tight_layout()
+plt.savefig('results_compression/validation_ux.png', dpi=150, bbox_inches='tight')
+print("Saved: results_compression/validation_ux.png")
