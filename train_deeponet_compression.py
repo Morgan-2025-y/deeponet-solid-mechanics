@@ -96,6 +96,25 @@ model = dde.Model(data, net)
 # Compile and Train
 model.compile("adam", lr=0.001, metrics=["mean l2 relative error"])
 losshistory, train_state = model.train(iterations=10000)
+# 6. 训练: Adam → L-BFGS 两阶段
+# ============================================================
+print("\n--- Stage 1: Adam (40000 iters) ---")
+model.compile("adam", lr=1e-3,
+              metrics=["mean l2 relative error"],
+              decay=("inverse time", 10000, 0.5))
+losshistory, trainstate = model.train(
+    iterations=40000,
+    batch_size=None,          # CartesianProd 全批次
+    display_every=2000,
+    model_save_path="results_compression/model_ux"
+)
+
+print("\n--- Stage 2: L-BFGS fine-tuning ---")
+model.compile("L-BFGS", metrics=["mean l2 relative error"])
+losshistory, trainstate = model.train(
+    display_every=500,
+    model_save_path="results_compression/model_ux_final"
+)
 
 # Plot the loss trajectory
 dde.utils.plot_loss_history(losshistory)
