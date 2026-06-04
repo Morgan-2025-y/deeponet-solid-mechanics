@@ -146,32 +146,41 @@ losshistory, trainstate = model.train(
 # ============================================================
 # 7. 评估 & 可视化
 # ============================================================
-ux_pred_norm = model.predict((b_test, trunk_pts))   # (200, 1024)
-ux_pred = ux_pred_norm * ux_std + ux_mean
-ux_true = ux_test      * ux_std + ux_mean
+pred_norm = model.predict((b_test, trunk_pts))     # (200, 1024, 2)
+ux_pred   = pred_norm[..., 0] * ux_std + ux_mean
+uy_pred   = pred_norm[..., 1] * uy_std + uy_mean
 
-rel_err = (np.linalg.norm(ux_pred - ux_true, axis=1) /
-           (np.linalg.norm(ux_true, axis=1) + 1e-12))
-print(f"\n测试集相对 L2 误差 — Mean: {rel_err.mean():.4f} | Std: {rel_err.std():.4f} | Max: {rel_err.max():.4f}")
+ux_true = y_test[..., 0] * ux_std + ux_mean       # ← ux_test 改为 y_test[...,0]
+uy_true = y_test[..., 1] * uy_std + uy_mean       # ← 新增这行
 
-# 画第一个测试样本的对比图
-fig, axes = plt.subplots(1, 3, figsize=(13, 4))
-fig.suptitle('Compression DeepONet — u_x Prediction vs FEM')
+ux_errors = (np.linalg.norm(ux_pred - ux_true, axis=1) /
+             (np.linalg.norm(ux_true, axis=1) + 1e-12))
+uy_errors = (np.linalg.norm(uy_pred - uy_true, axis=1) /
+             (np.linalg.norm(uy_true, axis=1) + 1e-12))
+print(f"ux — Mean: {ux_errors.mean():.4f} | Std: {ux_errors.std():.4f} | Max: {ux_errors.max():.4f}")
+print(f"uy — Mean: {uy_errors.mean():.4f} | Std: {uy_errors.std():.4f} | Max: {uy_errors.max():.4f}")
+
+fig, axes = plt.subplots(2, 3, figsize=(13, 8))
+fig.suptitle('Compression DeepONet — u_x and u_y Prediction vs FEM')
 kw = dict(cmap='RdBu_r', origin='lower', extent=[-HALF, HALF, -HALF, HALF])
 
+# 第一行：ux
 pred_2d = ux_pred[0].reshape(N_GRID, N_GRID)
 true_2d = ux_true[0].reshape(N_GRID, N_GRID)
-err_2d  = np.abs(pred_2d - true_2d)
+for ax, data, title in zip(axes[0],
+    [true_2d, pred_2d, np.abs(pred_2d - true_2d)],
+    ['FEM $u_x$', 'DeepONet $u_x$', '|Error| $u_x$']):
+    im = ax.imshow(data, **kw)
+    ax.set_title(title); plt.colorbar(im, ax=ax, fraction=0.046)
 
-vmin, vmax = true_2d.min(), true_2d.max()
-for ax, data, title in zip(axes,
-                            [true_2d, pred_2d, err_2d],
-                            ['FEM $u_x$', 'DeepONet $u_x$', '|Error|']):
-    v0, v1 = (vmin, vmax) if title != '|Error|' else (0, err_2d.max())
-    im = ax.imshow(data, **kw, vmin=v0, vmax=v1)
-    ax.set_title(title); ax.set_xlabel('x (m)'); ax.set_ylabel('y (m)')
-    plt.colorbar(im, ax=ax, fraction=0.046)
+# 第二行：uy
+pred_2d = uy_pred[0].reshape(N_GRID, N_GRID)
+true_2d = uy_true[0].reshape(N_GRID, N_GRID)
+for ax, data, title in zip(axes[1],
+    [true_2d, pred_2d, np.abs(pred_2d - true_2d)],
+    ['FEM $u_y$', 'DeepONet $u_y$', '|Error| $u_y$']):
+    im = ax.imshow(data, **kw)
+    ax.set_title(title); plt.colorbar(im, ax=ax, fraction=0.046)
 
 plt.tight_layout()
-plt.savefig('results_compression/validation_ux.png', dpi=150, bbox_inches='tight')
-print("Saved: results_compression/validation_ux.png")
+plt.savefig('results_compression/validation_ux_uy.png', dpi=150, bbox_inches='tight')
