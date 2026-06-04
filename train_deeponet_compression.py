@@ -112,10 +112,12 @@ data = dde.data.TripleCartesianProd(
 )
 
 net = dde.nn.DeepONetCartesianProd(
-    layer_sizes_branch=[101, 256, 256, 256, P],   # 输入: 101 个传感器
-    layer_sizes_trunk =[  2, 256, 256, 256, P],   # 输入: (x, y) 坐标
+    layer_sizes_branch=[101, 256, 256, 256, P * 2],   # 256 → split_both 后每输出 128 维
+    layer_sizes_trunk =[  2, 256, 256, 256, P * 2],
     activation="tanh",
     kernel_initializer="Glorot normal",
+    num_outputs=2,
+    multi_output_strategy="split_both",
 )
 
 model = dde.Model(data, net)
