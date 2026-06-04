@@ -95,7 +95,8 @@ np.save("results_compression/norm_params.npy",
 # ============================================================
 perm      = np.random.permutation(N)
 b_train   = branch_norm[perm[:800]];   b_test  = branch_norm[perm[800:]]
-ux_train  = ux_norm[perm[:800]];       ux_test = ux_norm[perm[800:]]
+y_train = np.stack([ux_norm[perm[:800]], uy_norm[perm[:800]]], axis=-1)  # (800, 1024, 2)
+y_test  = np.stack([ux_norm[perm[800:]], uy_norm[perm[800:]]], axis=-1)  # (200, 1024, 2)
 print(f"Train: {b_train.shape}, Test: {b_test.shape}")
 
 # ============================================================
@@ -105,9 +106,9 @@ P = 128   # Branch / Trunk 最后一层宽度 (内积维度)
 
 data = dde.data.TripleCartesianProd(
     X_train=(b_train, trunk_pts),
-    y_train=ux_train,               # (800, 1024)
+    y_train=y_train,   # (800, 1024, 2)
     X_test=(b_test,  trunk_pts),
-    y_test=ux_test                  # (200, 1024)
+    y_test=y_test      # (200, 1024, 2)
 )
 
 net = dde.nn.DeepONetCartesianProd(
