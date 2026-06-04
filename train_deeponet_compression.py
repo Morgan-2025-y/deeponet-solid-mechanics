@@ -54,11 +54,19 @@ N_Q       = trunk_pts.shape[0]
 
 N = len(idx_comp)
 ux_grid = np.zeros((N, N_Q), dtype=np.float32)
+uy_all_raw = [mat['final_v'][i] for i in idx_comp]
+uy_grid    = np.zeros((N, N_Q), dtype=np.float32)
 for i in range(N):
     if i % 200 == 0: print(f"  {i}/{N}")
     ux_grid[i] = griddata(
         coors_all[i].astype(np.float64),
         ux_all_raw[i],
+        trunk_pts.astype(np.float64),
+        method='linear', fill_value=0.0
+    ).astype(np.float32)
+    uy_grid[i] = griddata(
+        coors_all[i].astype(np.float64),
+        uy_all_raw[i],
         trunk_pts.astype(np.float64),
         method='linear', fill_value=0.0
     ).astype(np.float32)
@@ -73,10 +81,13 @@ ux_mean, ux_std = ux_grid.mean(),    ux_grid.std()    + 1e-12
 
 branch_norm = (branch_all - b_mean) / b_std
 ux_norm     = (ux_grid    - ux_mean) / ux_std
+uy_mean = uy_grid.mean();  uy_std = uy_grid.std() + 1e-12
+uy_norm = (uy_grid - uy_mean) / uy_std
 
 np.save("results_compression/norm_params.npy",
         {'b_mean': b_mean, 'b_std': b_std,
          'ux_mean': ux_mean, 'ux_std': ux_std,
+         'uy_mean': uy_mean, 'uy_std': uy_std,   # 新增
          'trunk_pts': trunk_pts})
 
 # ============================================================
